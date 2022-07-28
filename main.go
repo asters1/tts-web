@@ -87,13 +87,12 @@ func CheckConn(c *Client) {
 		err := c.conn.WriteMessage(websocket.PingMessage, []byte(""))
 		if err != nil {
 			fmt.Println(GetLogTime() + " -> 连接断开...")
-			time.Sleep(time.Second * 5)
 
 			RestConn(c)
 		} else {
 			fmt.Println(GetLogTime() + " -> 连接正常...")
 		}
-		time.Sleep(time.Second * 5)
+		time.Sleep(time.Second * 10)
 	}
 }
 func RunWebSocket() {
@@ -154,6 +153,7 @@ func RunWebSocket() {
 			ioutil.WriteFile("./mp3/"+sjc+".mp3", Adata, 0666)
 			check <- 0
 		} else {
+			RestConn(Client)
 
 		}
 	}
