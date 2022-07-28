@@ -21,6 +21,7 @@ type Client struct {
 var (
 	lock  sync.Mutex
 	wg    sync.WaitGroup
+	c2    Client
 	ch    chan string
 	check chan int
 )
@@ -69,28 +70,30 @@ func NewClient() (*Client, error) {
 func (c Client) Close() {
 	c.conn.Close()
 }
+func RestConn(c *Client) {
+	c.conn.Close()
+	for {
+		c1, err1 := NewClient()
+		if err1 == nil {
+
+			*c = *c1
+			fmt.Println(GetLogTime() + " -> 连接已重置...")
+			break
+		}
+	}
+}
 func CheckConn(c *Client) {
 	for {
 		err := c.conn.WriteMessage(websocket.PingMessage, []byte(""))
 		if err != nil {
 			fmt.Println(GetLogTime() + " -> 连接断开...")
-			for {
-				time.Sleep(time.Second * 5)
-				c1, err1 := NewClient()
-				if err1 == nil {
+			time.Sleep(time.Second * 5)
 
-					*c = *c1
-					defer c1.conn.Close()
-					fmt.Println(GetLogTime() + " -> 连接已重置...")
-					break
-
-				}
-			}
-
+			RestConn(c)
 		} else {
 			fmt.Println(GetLogTime() + " -> 连接正常...")
 		}
-		time.Sleep(time.Second * 15)
+		time.Sleep(time.Second * 5)
 	}
 }
 func RunWebSocket() {
@@ -146,10 +149,13 @@ func RunWebSocket() {
 			}
 
 		}
-		Adata = Adata[:len(Adata)-2400]
-		ioutil.WriteFile("./mp3/"+sjc+".mp3", Adata, 0666)
-		check <- 0
+		if len(Adata) > 2400 {
+			Adata = Adata[:len(Adata)-2400]
+			ioutil.WriteFile("./mp3/"+sjc+".mp3", Adata, 0666)
+			check <- 0
+		} else {
 
+		}
 	}
 }
 
