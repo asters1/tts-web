@@ -153,6 +153,7 @@ func RunWebSocket() {
 			ioutil.WriteFile("./mp3/"+sjc+".mp3", Adata, 0666)
 			check <- 0
 		} else {
+			check <- 1
 			RestConn(Client)
 
 		}
@@ -177,9 +178,11 @@ func main() {
 		a := <-check
 		if a == 0 {
 			fmt.Println("音频转换已完成")
-		}
+			c.Redirect(http.StatusMovedPermanently, "http://localhost:8080/mp3?sjc="+sjc)
+		} else if a == 1 {
+			fmt.Println("音频转换失败!")
 
-		c.Redirect(http.StatusMovedPermanently, "http://localhost:8080/mp3?sjc="+sjc)
+		}
 
 	})
 	r.GET("/mp3", func(ctx *gin.Context) {
