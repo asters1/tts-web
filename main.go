@@ -42,9 +42,11 @@ func GetLogTime() string {
 	return "[" + time.Now().In(BJ).String()[:19] + "]"
 }
 func NewClient() (*Client, error) {
-	token := GetToken()
+	//	token := GetToken()
 	uuid := tools.GetUUID()
-	WssUrl := `wss://all.wisteria.cf/eastus.tts.speech.microsoft.com/cognitiveservices/websocket/v1?Authorization=` + token + `&X-ConnectionId=` + uuid
+	//	WssUrl := `wss://all.wisteria.cf/eastus.tts.speech.microsoft.com/cognitiveservices/websocket/v1?Authorization=` + token + `&X-ConnectionId=` + uuid
+	//	wss://eastus.api.speech.microsoft.com/cognitiveservices/websocket/v1?TricType=AzureDemo&Authorization=bearer undefined&X-ConnectionId=8188D30D0FCA4
+	WssUrl := `wss://eastus.api.speech.microsoft.com/cognitiveservices/websocket/v1?TricType=AzureDemo&Authorization=bearer%20undefined&X-ConnectionId=` + uuid
 
 	dl := websocket.Dialer{
 		EnableCompression: true,
@@ -120,12 +122,12 @@ func RunWebSocket() {
 		sjc := <-ch
 
 		SSML := `<speak xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="http://www.w3.org/2001/mstts" xmlns:emo="http://www.w3.org/2009/10/emotionml" version="1.0" xml:lang="en-US">
-        <voice name="` + language + `-` + name + `">
-            <mstts:express-as style="general" >
-                <prosody rate="` + rate + `%" volume="` + volume + `" pitch="` + pitch + `%">` + string(text) + `</prosody>
-            </mstts:express-as>
-        </voice>
-    </speak>`
+		<voice name="` + language + `-` + name + `">
+		<mstts:express-as style="general" >
+		<prosody rate="` + rate + `%" volume="` + volume + `" pitch="` + pitch + `%">` + string(text) + `</prosody>
+		</mstts:express-as>
+		</voice>
+		</speak>`
 		m3 := "Path: ssml\r\nX-RequestId: " + tools.GetUUID() + "\r\nX-Timestamp: " + GetISOTime() + "\r\nContent-Type: application/ssml+xml\r\n\r\n" + SSML
 		Client.conn.WriteMessage(websocket.TextMessage, []byte(m3))
 
