@@ -186,7 +186,7 @@ func RunWebSocket() {
 		} else {
 			if count == 0 {
 
-				fmt.Println("文本内容为:" + text)
+				//				fmt.Println("文本内容为:" + text)
 				RestConn(Client)
 				go func() {
 					ch <- language
@@ -231,6 +231,7 @@ func main() {
 			fmt.Println("音频转换失败!")
 
 		}
+		count = 0
 
 	})
 	r.GET("/mp3", func(ctx *gin.Context) {
