@@ -116,7 +116,8 @@ func SendEmptyMessage(c *Client) {
 			if checkch == 0 {
 				fmt.Println(GetLogTime() + " -> 维持连接已完成")
 			} else if checkch == 1 {
-				fmt.Println(GetLogTime() + " -> 维持连接失败!")
+				fmt.Println(GetLogTime() + " -> 维持连接失败,正在重置连接")
+				RestConn(c)
 
 			}
 
@@ -162,7 +163,7 @@ func RunWebSocket() {
 		oldTime = time.Now().Unix()
 
 		var Adata []byte
-		fmt.Println("正在下载文件...")
+		fmt.Println(GetLogTime() + " -> 正在下载文件...")
 		for {
 			Num, message, err := Client.conn.ReadMessage()
 			if err != nil {
