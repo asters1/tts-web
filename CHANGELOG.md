@@ -1,3 +1,3 @@
-tts-web_v0.1.0
+tts-web_v1.0.0
 
-初始版本
+修复bug
