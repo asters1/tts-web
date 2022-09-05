@@ -19,19 +19,15 @@ type Client struct {
 }
 
 var (
-	lock  sync.Mutex
-	wg    sync.WaitGroup
-	c2    Client
-	ch    chan string
-	check chan int
+	lock    sync.Mutex
+	wg      sync.WaitGroup
+	c2      Client
+	ch      chan string
+	check   chan int
+	oldTime int64
+	nowTime int64
 )
 
-func GetToken() string {
-	res := tools.RequestClient("https://all.wisteria.cf/azure.microsoft.com/en-gb/services/cognitive-services/text-to-speech/", "get", "", "")
-	token := tools.Re(res, `token: \"(.*?)\"`)[1]
-	return token
-
-}
 func GetISOTime() string {
 	T := time.Now().String()
 	return T[:23][:10] + "T" + T[:23][11:] + "Z"
@@ -61,8 +57,11 @@ func NewClient() (*Client, error) {
 	}
 	m1 := "Path: speech.config\r\nX-RequestId: " + uuid + "\r\nX-Timestamp: " + GetISOTime() + "\r\nContent-Type: application/json\r\n\r\n{\"context\":{\"system\":{\"name\":\"SpeechSDK\",\"version\":\"1.19.0\",\"build\":\"JavaScript\",\"lang\":\"JavaScript\",\"os\":{\"platform\":\"Browser/Linux x86_64\",\"name\":\"Mozilla/5.0 (X11; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0\",\"version\":\"5.0 (X11)\"}}}}"
 	m2 := "Path: synthesis.context\r\nX-RequestId: " + uuid + "\r\nX-Timestamp: " + GetISOTime() + "\r\nContent-Type: application/json\r\n\r\n{\"synthesis\":{\"audio\":{\"metadataOptions\":{\"sentenceBoundaryEnabled\":false,\"wordBoundaryEnabled\":false},\"outputFormat\":\"audio-24khz-160kbitrate-mono-mp3\"}}}"
+	lock.Lock()
 	conn.WriteMessage(websocket.TextMessage, []byte(m1))
 	conn.WriteMessage(websocket.TextMessage, []byte(m2))
+	lock.Unlock()
+	oldTime = time.Now().Unix()
 
 	return &Client{
 		uuid: uuid,
@@ -73,6 +72,7 @@ func (c Client) Close() {
 	c.conn.Close()
 }
 func RestConn(c *Client) {
+	lock.Lock()
 	c.conn.Close()
 	for {
 		c1, err1 := NewClient()
@@ -83,10 +83,14 @@ func RestConn(c *Client) {
 			break
 		}
 	}
+	lock.Unlock()
 }
 func CheckConn(c *Client) {
 	for {
+
+		lock.Lock()
 		err := c.conn.WriteMessage(websocket.PingMessage, []byte(""))
+		lock.Unlock()
 		if err != nil {
 			fmt.Println(GetLogTime() + " -> 连接断开...")
 
@@ -95,7 +99,30 @@ func CheckConn(c *Client) {
 			fmt.Println(GetLogTime() + " -> 连接正常...")
 		}
 		time.Sleep(time.Second * 10)
+
 	}
+}
+func SendEmptyMessage(c *Client) {
+	for {
+		nowTime = time.Now().Unix()
+		ti := nowTime - oldTime
+		fmt.Println(ti)
+		if nowTime-oldTime > 30 {
+			SSML := `<speak xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="http://www.w3.org/2001/mstts" xmlns:emo="http://www.w3.org/2009/10/emotionml" version="1.0" xml:lang="en-US">
+			<voice name="zh-CN-YunXiNeural">
+			<mstts:express-as style="general" >
+			<prosody rate="0%" volume="100" pitch="0%"></prosody>
+			</mstts:express-as>
+			</voice>
+			</speak>`
+			m3 := "Path: ssml\r\nX-RequestId: " + tools.GetUUID() + "\r\nX-Timestamp: " + GetISOTime() + "\r\nContent-Type: application/ssml+xml\r\n\r\n" + SSML
+			lock.Lock()
+			c.conn.WriteMessage(websocket.TextMessage, []byte(m3))
+			lock.Unlock()
+		}
+		time.Sleep(time.Second * 30)
+	}
+
 }
 func RunWebSocket() {
 
@@ -110,6 +137,7 @@ func RunWebSocket() {
 	}
 	defer Client.Close()
 	go CheckConn(Client)
+	go SendEmptyMessage(Client)
 
 	for {
 		language := <-ch
@@ -129,7 +157,10 @@ func RunWebSocket() {
 		</voice>
 		</speak>`
 		m3 := "Path: ssml\r\nX-RequestId: " + tools.GetUUID() + "\r\nX-Timestamp: " + GetISOTime() + "\r\nContent-Type: application/ssml+xml\r\n\r\n" + SSML
+		lock.Lock()
 		Client.conn.WriteMessage(websocket.TextMessage, []byte(m3))
+		lock.Unlock()
+		oldTime = time.Now().Unix()
 
 		var Adata []byte
 		fmt.Println("正在下载文件...")
