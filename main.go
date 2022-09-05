@@ -39,11 +39,8 @@ func GetLogTime() string {
 	return "[" + time.Now().In(BJ).String()[:19] + "]"
 }
 func NewClient() (*Client, error) {
-	//	token := GetToken()
 	uuid := tools.GetUUID()
-	//	WssUrl := `wss://all.wisteria.cf/eastus.tts.speech.microsoft.com/cognitiveservices/websocket/v1?Authorization=` + token + `&X-ConnectionId=` + uuid
-	//	wss://eastus.api.speech.microsoft.com/cognitiveservices/websocket/v1?TricType=AzureDemo&Authorization=bearer undefined&X-ConnectionId=8188D30D0FCA4
-	WssUrl := `wss://wisteria.cf/eastus.api.speech.microsoft.com/cognitiveservices/websocket/v1?TricType=AzureDemo&Authorization=bearer%20undefined&X-ConnectionId=` + uuid
+	WssUrl := `wss://eastus.api.speech.microsoft.com/cognitiveservices/websocket/v1?TricType=AzureDemo&Authorization=bearer%20undefined&X-ConnectionId=` + uuid
 
 	dl := websocket.Dialer{
 		EnableCompression: true,
