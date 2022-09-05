@@ -26,6 +26,7 @@ var (
 	check   chan int
 	oldTime int64
 	nowTime int64
+	count   int
 )
 
 func GetISOTime() string {
@@ -42,7 +43,7 @@ func NewClient() (*Client, error) {
 	uuid := tools.GetUUID()
 	//	WssUrl := `wss://all.wisteria.cf/eastus.tts.speech.microsoft.com/cognitiveservices/websocket/v1?Authorization=` + token + `&X-ConnectionId=` + uuid
 	//	wss://eastus.api.speech.microsoft.com/cognitiveservices/websocket/v1?TricType=AzureDemo&Authorization=bearer undefined&X-ConnectionId=8188D30D0FCA4
-	WssUrl := `wss://eastus.api.speech.microsoft.com/cognitiveservices/websocket/v1?TricType=AzureDemo&Authorization=bearer%20undefined&X-ConnectionId=` + uuid
+	WssUrl := `wss://wisteria.cf/eastus.api.speech.microsoft.com/cognitiveservices/websocket/v1?TricType=AzureDemo&Authorization=bearer%20undefined&X-ConnectionId=` + uuid
 
 	dl := websocket.Dialer{
 		EnableCompression: true,
@@ -57,10 +58,8 @@ func NewClient() (*Client, error) {
 	}
 	m1 := "Path: speech.config\r\nX-RequestId: " + uuid + "\r\nX-Timestamp: " + GetISOTime() + "\r\nContent-Type: application/json\r\n\r\n{\"context\":{\"system\":{\"name\":\"SpeechSDK\",\"version\":\"1.19.0\",\"build\":\"JavaScript\",\"lang\":\"JavaScript\",\"os\":{\"platform\":\"Browser/Linux x86_64\",\"name\":\"Mozilla/5.0 (X11; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0\",\"version\":\"5.0 (X11)\"}}}}"
 	m2 := "Path: synthesis.context\r\nX-RequestId: " + uuid + "\r\nX-Timestamp: " + GetISOTime() + "\r\nContent-Type: application/json\r\n\r\n{\"synthesis\":{\"audio\":{\"metadataOptions\":{\"sentenceBoundaryEnabled\":false,\"wordBoundaryEnabled\":false},\"outputFormat\":\"audio-24khz-160kbitrate-mono-mp3\"}}}"
-	lock.Lock()
 	conn.WriteMessage(websocket.TextMessage, []byte(m1))
 	conn.WriteMessage(websocket.TextMessage, []byte(m2))
-	lock.Unlock()
 	oldTime = time.Now().Unix()
 
 	return &Client{
@@ -72,7 +71,6 @@ func (c Client) Close() {
 	c.conn.Close()
 }
 func RestConn(c *Client) {
-	lock.Lock()
 	c.conn.Close()
 	for {
 		c1, err1 := NewClient()
@@ -83,14 +81,11 @@ func RestConn(c *Client) {
 			break
 		}
 	}
-	lock.Unlock()
 }
 func CheckConn(c *Client) {
 	for {
 
-		lock.Lock()
 		err := c.conn.WriteMessage(websocket.PingMessage, []byte(""))
-		lock.Unlock()
 		if err != nil {
 			fmt.Println(GetLogTime() + " -> 连接断开...")
 
@@ -106,19 +101,25 @@ func SendEmptyMessage(c *Client) {
 	for {
 		nowTime = time.Now().Unix()
 		ti := nowTime - oldTime
-		fmt.Println(ti)
-		if nowTime-oldTime > 30 {
-			SSML := `<speak xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="http://www.w3.org/2001/mstts" xmlns:emo="http://www.w3.org/2009/10/emotionml" version="1.0" xml:lang="en-US">
-			<voice name="zh-CN-YunXiNeural">
-			<mstts:express-as style="general" >
-			<prosody rate="0%" volume="100" pitch="0%"></prosody>
-			</mstts:express-as>
-			</voice>
-			</speak>`
-			m3 := "Path: ssml\r\nX-RequestId: " + tools.GetUUID() + "\r\nX-Timestamp: " + GetISOTime() + "\r\nContent-Type: application/ssml+xml\r\n\r\n" + SSML
-			lock.Lock()
-			c.conn.WriteMessage(websocket.TextMessage, []byte(m3))
-			lock.Unlock()
+		//fmt.Printf("延迟%d\n", ti)
+		if ti >= 30 {
+			ch <- "zh-CN"
+			ch <- "YunXiNeural"
+			ch <- "100"
+			ch <- "0"
+			ch <- "0"
+
+			ch <- "a"
+			ch <- "a"
+
+			checkch := <-check
+			if checkch == 0 {
+				fmt.Println(GetLogTime() + " -> 维持连接已完成")
+			} else if checkch == 1 {
+				fmt.Println(GetLogTime() + " -> 维持连接失败!")
+
+			}
+
 		}
 		time.Sleep(time.Second * 30)
 	}
@@ -157,9 +158,7 @@ func RunWebSocket() {
 		</voice>
 		</speak>`
 		m3 := "Path: ssml\r\nX-RequestId: " + tools.GetUUID() + "\r\nX-Timestamp: " + GetISOTime() + "\r\nContent-Type: application/ssml+xml\r\n\r\n" + SSML
-		lock.Lock()
 		Client.conn.WriteMessage(websocket.TextMessage, []byte(m3))
-		lock.Unlock()
 		oldTime = time.Now().Unix()
 
 		var Adata []byte
@@ -176,7 +175,6 @@ func RunWebSocket() {
 				data := []byte(string(message)[index+12:])
 				Adata = append(Adata, data...)
 			} else if Num == 1 && string(message)[len(string(message))-14:len(string(message))-6] == "turn.end" {
-				fmt.Println("已完成")
 				break
 			}
 
@@ -186,8 +184,24 @@ func RunWebSocket() {
 			ioutil.WriteFile("./mp3/"+sjc+".mp3", Adata, 0666)
 			check <- 0
 		} else {
-			check <- 1
-			RestConn(Client)
+			if count == 0 {
+
+				fmt.Println("文本内容为:" + text)
+				RestConn(Client)
+				go func() {
+					ch <- language
+					ch <- name
+					ch <- volume
+					ch <- rate
+
+					ch <- pitch
+					ch <- text
+					ch <- sjc
+				}()
+				count = 1
+			} else {
+				check <- 1
+			}
 
 		}
 	}
@@ -196,6 +210,7 @@ func RunWebSocket() {
 func main() {
 	ch = make(chan string)
 	check = make(chan int)
+	count = 0
 	go RunWebSocket()
 	r := gin.Default()
 	r.POST("/tts", func(c *gin.Context) {
