@@ -1,10 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/asters1/tools"
 	"github.com/gin-gonic/gin"
@@ -22,14 +22,26 @@ type Ttsclient struct {
 	user   string
 }
 
+var ttstoken string
+
+func gettoken() {
+
+	TTStokenUrl := "https://southeastasia.customvoice.api.speech.microsoft.com/api/texttospeech/v3.0-beta1/accdemopageentry/auth-token"
+	restoken := tools.RequestClient(TTStokenUrl, "get", "", "")
+	ttstoken = gjson.Get(restoken, "authToken").String()
+}
 func main() {
 	var ttsc Ttsclient
-	TTStokenUrl := "https://southeastasia.customvoice.api.speech.microsoft.com/api/texttospeech/v3.0-beta1/accdemopageentry/auth-token"
 	TtsUrl := "https://southeastasia.customvoice.api.speech.microsoft.com/api/texttospeech/v3.0-beta1/accdemopage/speak"
-	restoken := tools.RequestClient(TTStokenUrl, "get", "", "")
-	ttstoken := gjson.Get(restoken, "authToken").String()
 	//ttstoken := "6ade89b95df558ec056c4a49a738b9cf5ba0e6264b4fcb1805bcfe0d21bcdbb5"
-	fmt.Println(ttstoken)
+
+	gettoken()
+	go func() {
+		for {
+			time.Sleep(time.Second * 300)
+			gettoken()
+		}
+	}()
 	r := gin.Default()
 	r.POST("/tts", func(c *gin.Context) {
 		ttsc.lang = c.PostForm("lang")
