@@ -38,7 +38,7 @@ func main() {
 	gettoken()
 	go func() {
 		for {
-			time.Sleep(time.Second * 300)
+			time.Sleep(time.Second * 180)
 			gettoken()
 		}
 	}()
