@@ -22,7 +22,20 @@ type Ttsclient struct {
 	user   string
 }
 
-var ttstoken string
+var (
+	ttstoken string
+	timer    int
+	ttsc     Ttsclient
+)
+
+func JiShi() {
+	for {
+		time.Sleep(time.Second * 1)
+		timer = timer + 1
+		//fmt.Println(timer)
+	}
+
+}
 
 func gettoken() {
 
@@ -31,19 +44,16 @@ func gettoken() {
 	ttstoken = gjson.Get(restoken, "authToken").String()
 }
 func main() {
-	var ttsc Ttsclient
-	TtsUrl := "https://southeastasia.customvoice.api.speech.microsoft.com/api/texttospeech/v3.0-beta1/accdemopage/speak"
-	//ttstoken := "6ade89b95df558ec056c4a49a738b9cf5ba0e6264b4fcb1805bcfe0d21bcdbb5"
 
-	gettoken()
-	go func() {
-		for {
-			time.Sleep(time.Second * 180)
-			gettoken()
-		}
-	}()
+	TtsUrl := "https://southeastasia.customvoice.api.speech.microsoft.com/api/texttospeech/v3.0-beta1/accdemopage/speak"
+	timer = 100
+	go JiShi()
 	r := gin.Default()
 	r.POST("/tts", func(c *gin.Context) {
+		if timer > 60 {
+			gettoken()
+			timer = 0
+		}
 		ttsc.lang = c.PostForm("lang")
 		ttsc.name = c.PostForm("name")
 		ttsc.volume = c.PostForm("volume")
